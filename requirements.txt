@@ -4,4 +4,4 @@ numpy
 scikit-learn
 joblib
 plotly
-xgboost
+xgboost == 2.1.4
