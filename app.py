@@ -221,14 +221,14 @@ def load_data(filepath):
         st.error(f"Error: Data file not found at `{filepath}`")
         return None
     try:
-        # Debug: Show the current working directory and files
-        st.write(f"Current working directory: {os.getcwd()}")
-        st.write(f"Files in directory: {os.listdir('.')}")
+        # # Debug: Show the current working directory and files
+        # st.write(f"Current working directory: {os.getcwd()}")
+        # st.write(f"Files in directory: {os.listdir('.')}")
         
-        # Debug: Preview the file content
-        with open(filepath, 'r', encoding='utf-8') as f:
-            content = f.read()
-            st.write("File content preview:", content[:500])
+        # # Debug: Preview the file content
+        # with open(filepath, 'r', encoding='utf-8') as f:
+        #     content = f.read()
+        #     st.write("File content preview:", content[:500])
         
         # Load data with explicit encoding and delimiter
         # Optionally use chunks to reduce memory usage
