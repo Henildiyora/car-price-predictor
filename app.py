@@ -232,11 +232,11 @@ st.markdown(f"""
 
 # --- File Paths (Update these to your actual paths) ---
 # Use user's provided absolute path for the banner
-BANNER_IMAGE_PATH = '/Users/diyorahenils/Documents/UB/Data intensive computing/Ovarian Cancer Detection /fast-car-abstract-photo-speed-600nw-2485659189.jpg'
+BANNER_IMAGE_PATH = 'banner.jpg'
 # Keep other paths as they were, assuming they work for the user
-DATA_PATH = '/Users/diyorahenils/Documents/UB/Data intensive computing/Ovarian Cancer Detection /data/processed/car_price_selected_feature_original.csv'
-MODEL_PATH = '/Users/diyorahenils/Documents/UB/Data intensive computing/Ovarian Cancer Detection /notebooks/src/saved_models/StackingRegressor_model.joblib'
-SCALER_PATH = '/Users/diyorahenils/Documents/UB/Data intensive computing/Ovarian Cancer Detection /notebooks/src/min_max_scaler.pkl'
+DATA_PATH = 'data/processed/car_price_selected_feature_original.csv'
+MODEL_PATH = 'notebooks/src/saved_models/StackingRegressor_model.joblib'
+SCALER_PATH = 'notebooks/src/min_max_scaler.pkl'
 
 # --- Helper Functions ---
 
