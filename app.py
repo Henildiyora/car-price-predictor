@@ -160,23 +160,27 @@ def load_data(filepath):
         st.error(f"Error: Data file not found at `{filepath}`")
         return None
     try:
-        # Try multiple encodings to load the file
+        # Debug: Preview the file content with multiple encoding attempts
         encodings = ['utf-8', 'latin1', 'utf-16']
+        content_preview = None
         for encoding in encodings:
             try:
-                chunk_size = 5000
-                chunks = pd.read_csv(filepath, encoding=encoding, sep=',', chunksize=chunk_size)
-                df = pd.concat(chunks, ignore_index=True)
+                with open(filepath, 'r', encoding=encoding) as f:
+                    content_preview = f.read(500)  # Read first 500 characters
+                st.write(f"File content preview (encoding: {encoding}):", content_preview)
                 break  # If successful, stop trying other encodings
             except UnicodeDecodeError:
+                st.warning(f"Failed to read file with {encoding} encoding, trying next...")
                 continue
-            except Exception as e:
-                st.error(f"Error loading data with {encoding} encoding: {e}")
-                return None
         
-        if 'df' not in locals():
+        if content_preview is None:
             st.error("Unable to read file with any supported encoding.")
             return None
+        
+        # Load data with the successful encoding
+        chunk_size = 5000
+        chunks = pd.read_csv(filepath, encoding=encoding, sep=',', chunksize=chunk_size)
+        df = pd.concat(chunks, ignore_index=True)
         
         required_cols = ['make', 'model', 'condition', 'year', 'odometer', 'mmr', 'sellingprice', 'state']
         if not all(col in df.columns for col in required_cols):
@@ -202,6 +206,7 @@ def load_data(filepath):
     except Exception as e:
         st.error(f"Error loading data: {e}")
         return None
+
 
 
 @st.cache_resource
