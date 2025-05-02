@@ -4,13 +4,10 @@ import numpy as np
 import pickle
 import joblib
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics.pairwise import cosine_similarity
 from datetime import datetime
 import plotly.express as px
 import plotly.graph_objects as go
-import uuid
 import os
-import time
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Car Insights", layout="wide", page_icon="⚡")
@@ -148,69 +145,12 @@ st.markdown(f"""
         color: {COLOR_PALETTE['primary']};
         border-bottom: 4px solid {COLOR_PALETTE['primary']};
 	}}
-    .car-card {{
-        background-color: {COLOR_PALETTE['card_bg']};
-        border-radius: 10px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        border: 1px solid {COLOR_PALETTE['border']};
-        transition: box-shadow 0.3s ease;
-        height: 95%;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-    }}
-    .car-card:hover {{
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-    }}
-    .car-card h4 {{
-        color: {COLOR_PALETTE['primary']};
-        margin-top: 0;
-        margin-bottom: 10px;
-        font-weight: 700;
-        border-bottom: 1px solid {COLOR_PALETTE['border']};
-        padding-bottom: 8px;
-    }}
-    .car-card .card-content {{
-        flex-grow: 1;
-    }}
-    .car-card p {{
-        font-size: 0.95em;
-        color: {COLOR_PALETTE['subtle_text']};
-        margin-bottom: 5px;
-        line-height: 1.4;
-    }}
-    .car-card .stMetric {{
-         background-color: #f8f9fa;
-         border-radius: 6px;
-         padding: 10px 15px;
-         border: 1px solid {COLOR_PALETTE['border']};
-         margin-top: 10px;
-    }}
-    .car-card .stMetric label {{
-          font-weight: 400;
-          color: {COLOR_PALETTE['secondary']};
-          margin-bottom: 2px;
-    }}
-    .car-card .stMetric p {{
-          font-size: 1.3em;
-          font-weight: 700;
-          color: {COLOR_PALETTE['accent']};
-          margin-bottom: 0;
-          line-height: 1.2;
-    }}
-    .icon {{
-           font-size: 1.1em;
-           margin-right: 5px;
-           vertical-align: middle;
-    }}
 </style>
 """, unsafe_allow_html=True)
 
 # --- File Paths ---
 BANNER_IMAGE_PATH = 'banner.jpg'
-DATA_PATH = 'data/processed/car_price_selected_feature_original.csv'  # Update if using sampled file
+DATA_PATH = 'data/processed/car_price_selected_feature_original.csv'
 MODEL_PATH = 'notebooks/src/saved_models/StackingRegressor_model.joblib'
 SCALER_PATH = 'notebooks/src/min_max_scaler.pkl'
 
@@ -221,18 +161,7 @@ def load_data(filepath):
         st.error(f"Error: Data file not found at `{filepath}`")
         return None
     try:
-        # # Debug: Show the current working directory and files
-        # st.write(f"Current working directory: {os.getcwd()}")
-        # st.write(f"Files in directory: {os.listdir('.')}")
-        
-        # # Debug: Preview the file content
-        # with open(filepath, 'r', encoding='utf-8') as f:
-        #     content = f.read()
-        #     st.write("File content preview:", content[:500])
-        
-        # Load data with explicit encoding and delimiter
-        # Optionally use chunks to reduce memory usage
-        chunk_size = 5000  # Adjust based on your needs
+        chunk_size = 5000
         chunks = pd.read_csv(filepath, encoding='utf-8', sep=',', chunksize=chunk_size)
         df = pd.concat(chunks, ignore_index=True)
         
@@ -284,35 +213,6 @@ def load_scaler(filepath):
         st.error(f"Error loading scaler: {e}")
         return None
 
-@st.cache_data(show_spinner="Preprocessing data for similarity search (first time only)...")
-def get_preprocessed_data_for_similarity(_df_original, _label_encoders, _scaler,
-                                          all_model_features, numerical_features_scaled,
-                                          numerical_features_unscaled, categorical_features):
-    df_processed = _df_original.copy()
-    for feature in categorical_features:
-        if feature in _label_encoders:
-            classes = set(_label_encoders[feature].classes_)
-            df_processed[feature] = df_processed[feature].apply(lambda x: _label_encoders[feature].transform([x])[0] if x in classes else -1)
-        else:
-            df_processed[feature] = -1
-    try:
-        df_scaled = pd.DataFrame(
-            _scaler.transform(df_processed[numerical_features_scaled]),
-            columns=numerical_features_scaled,
-            index=df_processed.index
-        )
-    except Exception as e:
-        st.error(f"Error scaling dataset for similarity: {e}")
-        return None
-    df_all_features = pd.concat([
-        df_scaled,
-        df_processed[numerical_features_unscaled],
-        df_processed[categorical_features]
-    ], axis=1)
-    df_all_features_reindexed = df_all_features.reindex(columns=all_model_features, fill_value=0)
-    df_all_features_filled = df_all_features_reindexed.fillna(0)
-    return df_all_features_filled
-
 def preprocess_input(input_data, label_encoders, scaler, all_model_features, numerical_features_scaled, numerical_features_unscaled, categorical_features):
     input_df = pd.DataFrame([input_data])
     current_year = datetime.now().year
@@ -334,85 +234,6 @@ def preprocess_input(input_data, label_encoders, scaler, all_model_features, num
     final_input_df = pd.concat([input_scaled_df, input_df[numerical_features_unscaled].reset_index(drop=True), input_df[categorical_features].reset_index(drop=True)], axis=1)
     final_input_df = final_input_df.reindex(columns=all_model_features, fill_value=0)
     return final_input_df.fillna(0)
-
-def display_car_card(car_data, card_type="similar"):
-    title = "N/A"
-    price_label = "Price"
-    price_value = "$0"
-    content = "<p>Details not available.</p>"
-    try:
-        if card_type == "similar":
-            make = car_data.get('make', 'N/A')
-            model = car_data.get('model', 'N/A')
-            title = f"{make} {model}"
-            price_label = "Selling Price"
-            selling_price = car_data.get('sellingprice')
-            if pd.notna(selling_price) and isinstance(selling_price, (int, float)):
-                price_value = f"${selling_price:,.0f}"
-            else:
-                price_value = "N/A"
-            year_val = car_data.get('year')
-            odom_val = car_data.get('odometer')
-            cond_val = car_data.get('condition')
-            state_val = car_data.get('state')
-            year_str = f"{int(year_val)}" if pd.notna(year_val) and isinstance(year_val, (int, float)) else 'N/A'
-            odom_str = f"{odom_val:,.0f} mi" if pd.notna(odom_val) and isinstance(odom_val, (int, float)) else 'N/A'
-            cond_str = f"{cond_val:.1f}" if pd.notna(cond_val) and isinstance(cond_val, (int, float)) else 'N/A'
-            state_str = f"{state_val}" if pd.notna(state_val) else 'N/A'
-            content = f"""
-                <p><span class="icon">📅</span>Year: {year_str}</p>
-                <p><span class="icon">🛣️</span>Odometer: {odom_str}</p>
-                <p><span class="icon">⭐</span>Condition: {cond_str}</p>
-                <p><span class="icon">🌎</span>State: {state_str}</p>
-            """
-        elif card_type == "saved":
-            make = car_data.get('Make', 'N/A')
-            model = car_data.get('Model', 'N/A')
-            title = f"{make} {model}"
-            price_label = "Predicted Price"
-            price_value = car_data.get('Predicted Price', '$0')
-            year_val = car_data.get('Year')
-            odom_val = car_data.get('Odometer')
-            cond_val = car_data.get('Condition')
-            mmr_val = car_data.get('MMR')
-            time_val = car_data.get('Timestamp')
-            year_str = f"{int(year_val)}" if pd.notna(year_val) and isinstance(year_val, (int, float)) else 'N/A'
-            odom_str = f"{odom_val:,.0f} mi" if pd.notna(odom_val) and isinstance(odom_val, (int, float)) else 'N/A'
-            cond_str = f"{cond_val:.1f}" if pd.notna(cond_val) and isinstance(cond_val, (int, float)) else 'N/A'
-            mmr_str = f"${mmr_val:,.0f}" if pd.notna(mmr_val) and isinstance(mmr_val, (int, float)) else 'N/A'
-            time_str = f"{time_val}" if pd.notna(time_val) else 'N/A'
-            content = f"""
-                 <p><span class="icon">📅</span>Year: {year_str}</p>
-                 <p><span class="icon">🛣️</span>Odometer: {odom_str}</p>
-                 <p><span class="icon">⭐</span>Condition: {cond_str}</p>
-                 <p><span class="icon">💰</span>Input MMR: {mmr_str}</p>
-                 <p><span class="icon">🕒</span>Saved: {time_str}</p>
-            """
-        title_str = str(title)
-        content_str = str(content)
-        price_label_str = str(price_label)
-        price_value_str = str(price_value)
-        st.markdown(f"""
-        <div class="car-card">
-            <div>
-                <h4>{title_str}</h4>
-                <div class="card-content">{content_str}</div>
-            </div>
-            <div>
-                <div class="stMetric">
-                    <label>{price_label_str}</label>
-                    <p>{price_value_str}</p>
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    except Exception as e:
-        st.error(f"Error rendering card for: {car_data.get('make', car_data.get('Make', 'Unknown'))}")
-        st.exception(e)
-        try:
-            st.json(car_data, expanded=False)
-        except Exception:
-            st.write("Raw data for failed card (contains non-serializable data):", car_data)
 
 # --- Load Data, Model, and Scaler ---
 df_original = load_data(DATA_PATH)
@@ -461,18 +282,8 @@ except Exception as e:
     st.error(f"Init Error: {e}")
     st.stop()
 
-if 'predictions' not in st.session_state:
-    st.session_state.predictions = []
-
-preprocessed_data_for_similarity = get_preprocessed_data_for_similarity(
-    df, label_encoders, scaler, all_model_features,
-    numerical_features_scaled, numerical_features_unscaled, categorical_features
-)
-if preprocessed_data_for_similarity is None:
-    st.error("Failed to preprocess data for similarity search. Cannot find similar cars.")
-
-tab_titles = ["💰 Price Predictor", "🔍 Price Range Explorer", "📊 Market Insights", "📜 Saved Predictions"]
-tab1, tab2, tab3, tab4 = st.tabs(tab_titles)
+tab_titles = ["💰 Price Predictor", "🔍 Price Range Explorer", "📊 Market Insights"]
+tab1, tab2, tab3 = st.tabs(tab_titles)
 
 with tab1:
     st.header("Estimate Your Car's Value")
@@ -532,8 +343,7 @@ with tab1:
             st.warning("Please select a valid model.")
             validation_passed = False
     if st.button('Predict Selling Price', key='predict_button', disabled=not validation_passed, use_container_width=True):
-        if validation_passed and model_selected and preprocessed_data_for_similarity is not None:
-            start_time = time.time()
+        if validation_passed and model_selected:
             with st.spinner('Performing Analysis... Please Wait...'):
                 input_dict = {'make': make, 'model': model_selected, 'condition': condition,
                               'year': year, 'odometer': odometer, 'mmr': mmr}
@@ -549,45 +359,10 @@ with tab1:
                         pred_price = pred_log_price * 100000
                         formatted_price = f"${pred_price:,.0f}"
                         st.markdown(f'<div class="success-message">Estimated Selling Price: {formatted_price}</div>', unsafe_allow_html=True)
-                        prediction_done_time = time.time()
-                        st.subheader("Similar Cars from Our Database")
-                        st.caption("Based on features like make, model, year, condition, mileage, and market value.")
-                        similarity_scores = cosine_similarity(final_input, preprocessed_data_for_similarity)
-                        num_similar_to_show = 5
-                        num_available = len(preprocessed_data_for_similarity)
-                        if num_available > 1:
-                             top_indices = np.argsort(similarity_scores[0])[-(num_similar_to_show + 1):-1][::-1]
-                             if len(top_indices) < num_similar_to_show:
-                                 top_indices = np.argsort(similarity_scores[0])[-num_similar_to_show:][::-1]
-                        elif num_available == 1:
-                             top_indices = [0]
-                        else:
-                             top_indices = []
-                        similar_cars_df = df.iloc[top_indices][['make', 'model', 'year', 'condition', 'odometer', 'mmr', 'sellingprice', 'state']].copy()
-                        similarity_done_time = time.time()
-                        if not similar_cars_df.empty:
-                             cols = st.columns(len(similar_cars_df))
-                             for i, (_, car_row) in enumerate(similar_cars_df.iterrows()):
-                                 with cols[i]:
-                                     display_car_card(car_row.to_dict(), card_type="similar")
-                        else:
-                            st.info("No highly similar cars found for comparison based on the input features.")
-                        display_done_time = time.time()
-                        if st.button("💾 Save This Estimate", key="save_pred", help="Save the input details and predicted price"):
-                             prediction_id = str(uuid.uuid4())
-                             st.session_state.predictions.append({
-                                 'id': prediction_id, 'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M"),
-                                 'Make': make, 'Model': model_selected, 'Year': year, 'Condition': condition,
-                                 'Odometer': odometer, 'MMR': mmr, 'Predicted Price': formatted_price
-                             })
-                             st.success("✅ Estimate saved successfully!")
-                             st.balloons()
                     except Exception as e:
-                        st.error(f"Error during prediction/similarity: {e}")
+                        st.error(f"Error during prediction: {e}")
                         import traceback
                         st.error(traceback.format_exc())
-        elif preprocessed_data_for_similarity is None:
-             st.error("Cannot perform prediction as preprocessed similarity data is unavailable.")
 
 with tab2:
     st.header("Explore Market by Price")
@@ -654,7 +429,7 @@ with tab3:
                 fig_price_hist.update_layout(title_x=0.5)
                 st.plotly_chart(fig_price_hist, use_container_width=True)
             except Exception as e:
-                st.warning(f"Plotting Error (Price Dist): {e}")
+                st.warning(f"-odd Error (Price Dist): {e}")
         else:
             st.warning("'sellingprice' column needed for Price Distribution.")
         if 'make' in df.columns and 'sellingprice' in df.columns:
@@ -675,9 +450,12 @@ with tab3:
             try:
                 sample_size = min(10000, len(df))
                 if sample_size > 0:
-                     fig_price_mileage = px.density_heatmap(df.sample(sample_size), x='odometer', y='sellingprice', nbinsx=30, nbinsy=30, title="Density: Selling Price vs. Odometer", labels={'odometer': 'Odometer (miles)', 'sellingprice': 'Selling Price ($)'}, color_continuous_scale="Blues")
-                     fig_price_mileage.update_layout(title_x=0.5)
-                     st.plotly_chart(fig_price_mileage, use_container_width=True)
+                    fig_price_mileage = px.density_heatmap(df.sample(sample_size), x='odometer', y='sellingprice', nbinsx=30, nbinsy=30, 
+                                                        title="Density: Selling Price vs. Odometer", 
+                                                        labels={'odometer': 'Odometer (miles)', 'sellingprice': 'Selling Price ($)'}, 
+                                                        color_continuous_scale="Blues")
+                    fig_price_mileage.update_layout(title_x=0.5)
+                    st.plotly_chart(fig_price_mileage, use_container_width=True)
                 else:
                     st.info("Not enough data to plot Price vs Mileage Density.")
             except Exception as e:
@@ -695,40 +473,6 @@ with tab3:
                  st.warning(f"Plotting Error (Price Trend by Year): {e}")
         else:
             st.warning("'year' and 'sellingprice' columns needed for Price Trend.")
-    if 'state' in df.columns and 'sellingprice' in df.columns and not df['state'].empty:
-        st.subheader("🌎 Geographic Price Map")
-        try:
-            state_avg_price = df.groupby('state')['sellingprice'].mean().reset_index()
-            state_data = state_avg_price
-            fig_map = px.choropleth(state_data, locations='state', locationmode='USA-states', scope='usa', color='sellingprice', color_continuous_scale="Blues", hover_name='state', hover_data={'sellingprice': ':$.,0f', 'state': False}, title='Average Selling Price by State')
-            fig_map.update_layout(title_x=0.5, geo=dict(bgcolor='rgba(0,0,0,0)'), margin={"r":0,"t":40,"l":0,"b":0})
-            st.plotly_chart(fig_map, use_container_width=True)
-        except ImportError:
-            st.warning("⚠️ Plotly Geo library might be needed.")
-        except Exception as e:
-            st.warning(f"Could not generate map. Check 'state' format. Error: {e}")
-
-with tab4:
-    st.header("💾 Your Saved Estimates")
-    if st.session_state.predictions:
-        st.write(f"You have {len(st.session_state.predictions)} saved estimate(s).")
-        num_cols = 3
-        cols = st.columns(num_cols)
-        for i, pred in enumerate(reversed(st.session_state.predictions)):
-            col_index = i % num_cols
-            with cols[col_index]:
-                try:
-                    display_car_card(pred, card_type="saved")
-                except Exception as e:
-                    st.warning(f"Could not display saved prediction #{len(st.session_state.predictions)-i}: {e}")
-                    st.json(pred)
-        st.markdown("---")
-        if st.button("🗑️ Clear All Saved Estimates", key="clear_preds", type="primary"):
-            st.session_state.predictions = []
-            st.success("🗑️ All saved estimates cleared!")
-            st.experimental_rerun()
-    else:
-        st.info("You haven't saved any estimates yet. Use the 'Save This Estimate' button in the 'Price Predictor' tab.")
 
 st.markdown("---")
 st.markdown(f"""
