@@ -167,7 +167,7 @@ def load_data(filepath):
             try:
                 with open(filepath, 'r', encoding=encoding) as f:
                     content_preview = f.read(500)  # Read first 500 characters
-                st.write(f"File content preview (encoding: {encoding}):", content_preview)
+                # st.write(f"File content preview (encoding: {encoding}):", content_preview)
                 break  # If successful, stop trying other encodings
             except UnicodeDecodeError:
                 st.warning(f"Failed to read file with {encoding} encoding, trying next...")
