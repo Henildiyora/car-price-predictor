@@ -164,19 +164,26 @@ def load_data(filepath):
         st.write(f"Current working directory: {os.getcwd()}")
         st.write(f"Files in directory: {os.listdir(os.path.dirname(filepath))}")
         
-        # Debug: Preview the file content
-        with open(filepath, 'r', encoding='utf-8') as f:
-            content = f.read()
-            st.write("File content preview:", content[:500])
+        # Debug: Preview the file content with multiple encoding attempts
+        encodings = ['utf-8', 'latin1', 'utf-16']
+        content_preview = None
+        for encoding in encodings:
+            try:
+                with open(filepath, 'r', encoding=encoding) as f:
+                    content_preview = f.read(500)  # Read first 500 characters
+                st.write(f"File content preview (encoding: {encoding}):", content_preview)
+                break  # If successful, stop trying other encodings
+            except UnicodeDecodeError:
+                st.warning(f"Failed to read file with {encoding} encoding, trying next...")
+                continue
         
-        # Load data with explicit encoding and delimiter
+        if content_preview is None:
+            st.error("Unable to read file with any supported encoding.")
+            return None
+        
+        # Load data with the successful encoding
         chunk_size = 5000
-        try:
-            chunks = pd.read_csv(filepath, encoding='utf-8', sep=',', chunksize=chunk_size)
-        except UnicodeDecodeError:
-            st.warning("UTF-8 encoding failed, trying 'latin1' encoding...")
-            chunks = pd.read_csv(filepath, encoding='latin1', sep=',', chunksize=chunk_size)
-        
+        chunks = pd.read_csv(filepath, encoding=encoding, sep=',', chunksize=chunk_size)
         df = pd.concat(chunks, ignore_index=True)
         
         required_cols = ['make', 'model', 'condition', 'year', 'odometer', 'mmr', 'sellingprice', 'state']
@@ -203,7 +210,6 @@ def load_data(filepath):
     except Exception as e:
         st.error(f"Error loading data: {e}")
         return None
-
 
 @st.cache_resource
 def load_model(filepath):
