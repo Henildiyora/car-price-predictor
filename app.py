@@ -166,9 +166,9 @@ def load_data(filepath):
         for encoding in encodings:
             try:
                 with open(filepath, 'r', encoding=encoding) as f:
-                    content_preview = f.read(500)  # Read first 500 characters
+                    content_preview = f.read(500)  
                 st.write(f"File content preview (encoding: {encoding}):", content_preview)
-                break  # If successful, stop trying other encodings
+                break  
             except UnicodeDecodeError:
                 st.warning(f"Failed to read file with {encoding} encoding, trying next...")
                 continue
@@ -177,7 +177,6 @@ def load_data(filepath):
             st.error("Unable to read file with any supported encoding.")
             return None
         
-        # Load data with the successful encoding
         chunk_size = 5000
         chunks = pd.read_csv(filepath, encoding=encoding, sep=',', chunksize=chunk_size)
         df = pd.concat(chunks, ignore_index=True)
@@ -493,9 +492,3 @@ with tab3:
         else:
             st.warning("'year' and 'sellingprice' columns needed for Price Trend.")
 
-st.markdown("---")
-st.markdown(f"""
-<div style="text-align: center; color: {COLOR_PALETTE['subtle_text']}; font-size: 0.9em;">
-    Car Insights Pro+ | Powered by Streamlit & Scikit-learn | Data as of {datetime.now().year}
-</div>
-""", unsafe_allow_html=True)
