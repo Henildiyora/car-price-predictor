@@ -154,15 +154,29 @@ DATA_PATH = 'data/processed/car_price_selected_feature_original.csv'
 MODEL_PATH = 'notebooks/src/saved_models/StackingRegressor_model.joblib'
 SCALER_PATH = 'notebooks/src/min_max_scaler.pkl'
 
-# --- Helper Functions ---
 @st.cache_data
 def load_data(filepath):
     if not os.path.exists(filepath):
         st.error(f"Error: Data file not found at `{filepath}`")
         return None
     try:
+        # Debug: Show the current working directory and files
+        st.write(f"Current working directory: {os.getcwd()}")
+        st.write(f"Files in directory: {os.listdir(os.path.dirname(filepath))}")
+        
+        # Debug: Preview the file content
+        with open(filepath, 'r', encoding='utf-8') as f:
+            content = f.read()
+            st.write("File content preview:", content[:500])
+        
+        # Load data with explicit encoding and delimiter
         chunk_size = 5000
-        chunks = pd.read_csv(filepath, encoding='utf-8', sep=',', chunksize=chunk_size)
+        try:
+            chunks = pd.read_csv(filepath, encoding='utf-8', sep=',', chunksize=chunk_size)
+        except UnicodeDecodeError:
+            st.warning("UTF-8 encoding failed, trying 'latin1' encoding...")
+            chunks = pd.read_csv(filepath, encoding='latin1', sep=',', chunksize=chunk_size)
+        
         df = pd.concat(chunks, ignore_index=True)
         
         required_cols = ['make', 'model', 'condition', 'year', 'odometer', 'mmr', 'sellingprice', 'state']
@@ -189,6 +203,7 @@ def load_data(filepath):
     except Exception as e:
         st.error(f"Error loading data: {e}")
         return None
+
 
 @st.cache_resource
 def load_model(filepath):
