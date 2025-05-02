@@ -492,3 +492,9 @@ with tab3:
         else:
             st.warning("'year' and 'sellingprice' columns needed for Price Trend.")
 
+st.markdown("---")
+st.markdown(f"""
+<div style="text-align: center; color: {COLOR_PALETTE['subtle_text']}; font-size: 0.9em;">
+    Car Insights Pro+ | Powered by Streamlit & Scikit-learn | Data as of {datetime.now().year}
+</div>
+""", unsafe_allow_html=True)
