@@ -160,7 +160,11 @@ def load_data(filepath):
         st.error(f"Error: Data file not found at `{filepath}`")
         return None
     try:
+        # Debug: Show the current working directory and files
+        st.write(f"Current working directory: {os.getcwd()}")
+        st.write(f"Files in directory: {os.listdir(os.path.dirname(filepath))}")
         
+        # Debug: Preview the file content with multiple encoding attempts
         encodings = ['utf-8', 'latin1', 'utf-16']
         content_preview = None
         for encoding in encodings:
