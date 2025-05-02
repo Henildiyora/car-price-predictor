@@ -160,31 +160,23 @@ def load_data(filepath):
         st.error(f"Error: Data file not found at `{filepath}`")
         return None
     try:
-        # Debug: Show the current working directory and files
-        st.write(f"Current working directory: {os.getcwd()}")
-        st.write(f"Files in directory: {os.listdir(os.path.dirname(filepath))}")
-        
-        # Debug: Preview the file content with multiple encoding attempts
+        # Try multiple encodings to load the file
         encodings = ['utf-8', 'latin1', 'utf-16']
-        content_preview = None
         for encoding in encodings:
             try:
-                with open(filepath, 'r', encoding=encoding) as f:
-                    content_preview = f.read(500)  # Read first 500 characters
-                st.write(f"File content preview (encoding: {encoding}):", content_preview)
+                chunk_size = 5000
+                chunks = pd.read_csv(filepath, encoding=encoding, sep=',', chunksize=chunk_size)
+                df = pd.concat(chunks, ignore_index=True)
                 break  # If successful, stop trying other encodings
             except UnicodeDecodeError:
-                st.warning(f"Failed to read file with {encoding} encoding, trying next...")
                 continue
+            except Exception as e:
+                st.error(f"Error loading data with {encoding} encoding: {e}")
+                return None
         
-        if content_preview is None:
+        if 'df' not in locals():
             st.error("Unable to read file with any supported encoding.")
             return None
-        
-        # Load data with the successful encoding
-        chunk_size = 5000
-        chunks = pd.read_csv(filepath, encoding=encoding, sep=',', chunksize=chunk_size)
-        df = pd.concat(chunks, ignore_index=True)
         
         required_cols = ['make', 'model', 'condition', 'year', 'odometer', 'mmr', 'sellingprice', 'state']
         if not all(col in df.columns for col in required_cols):
@@ -210,6 +202,7 @@ def load_data(filepath):
     except Exception as e:
         st.error(f"Error loading data: {e}")
         return None
+
 
 @st.cache_resource
 def load_model(filepath):
